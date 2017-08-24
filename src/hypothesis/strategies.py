@@ -1396,12 +1396,8 @@ def composite(f):
     @define_function_signature(f.__name__, f.__doc__, new_argspec)
     def accept(*args, **kwargs):
         class CompositeStrategy(SearchStrategy):
-
             def do_draw(self, data):
-                first_draw = [True]
-
                 def draw(strategy):
-                    first_draw[0] = False
                     return data.draw(strategy)
 
                 return f(draw, *args, **kwargs)
@@ -1585,6 +1581,11 @@ def data():
                 "using @composite for whatever it is you're trying to do."
             ) % (name,))
     return DataStrategy()
+
+
+def local(definition):
+    from hypothesis.searchstrategy.local import LocalSearchStrategy
+    return LocalSearchStrategy(definition)
 
 
 def register_type_strategy(custom_type, strategy):
