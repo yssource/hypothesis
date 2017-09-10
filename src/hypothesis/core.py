@@ -52,6 +52,9 @@ from hypothesis.internal.conjecture.data import Status, StopTest, \
 from hypothesis.searchstrategy.strategies import SearchStrategy
 from hypothesis.internal.conjecture.engine import ExitReason, \
     ConjectureRunner, uniform
+from hypothesis.internal.tracker import tracker
+from weakref import ref as weakref
+from hypothesis.control import cleanup
 
 
 def new_random():
@@ -408,6 +411,83 @@ def get_random_for_wrapped_test(test, wrapped_test):
         return new_random()
 
 
+class WeakIdKey(object):
+    def __init__(self, value):
+        self.__ref = weakref(value)
+        self.__hash = hash(id(value))
+
+    def __eq__(self, other):
+        if not isinstance(other, WeakIdKey):
+            return False
+        return self.__ref() is other.__ref()
+
+    def __ne__(self, other):
+        if not isinstance(other, WeakIdKey):
+            return False
+        return self.__ref() is not other.__ref()
+
+    def __hash__(self):
+        return self.__hash
+
+
+class WithTracker(SearchStrategy):
+    def __init__(self, wrapped, name):
+        assert isinstance(wrapped, SearchStrategy)
+        self.__wrapped = wrapped
+        self.__name = name
+
+    def calc_is_empty(self):
+        return self.__wrapped.is_empty
+
+    def calc_has_reusable_values(self):
+        return self.__wrapped.has_reusable_values
+
+    def validate(self):
+        return self.__wrapped.validate()
+
+    def do_draw(self, data):
+        result = data.draw(self.__wrapped)
+        # These values are routinely tested for instance identity, so we can't
+        # safely proxy them.
+        if result is None or isinstance(result, bool):
+            return result
+
+        # We'd like to use a weakref key but we can't always. If the object is
+        # of a type you can't weakref then we'll use its id and stop it from
+        # being garbage collected until the test has completed.
+        try:
+            key = (self.__name, WeakIdKey(result))
+        except TypeError:
+            key = (self.__name, id(result))
+
+        try:
+            gc_stop, instance_map = data.__tracking_state
+        except AttributeError:
+            gc_stop, instance_map = data.__tracking_state = ([], {})
+
+        try:
+            data.__registered_cleanup_call
+        except AttributeError:
+            @cleanup
+            def _():
+                for s in data.__tracking_state:
+                    s.clear()
+            data.__registered_cleanup_call = True
+
+        try:
+            return instance_map[key]
+        except KeyError:
+            # We force the object to last the entire test run as otherwise its
+            # id might be reused.
+            if not isinstance(key[1], weakref):
+                gc_stop.append(result)
+            tracked = tracker(
+                result, self.__name, data
+            )
+            instance_map[key] = tracked
+            return tracked
+
+
 def process_arguments_to_given(
     wrapped_test, arguments, kwargs, generator_arguments, generator_kwargs,
     argspec, test, settings
@@ -428,6 +508,11 @@ def process_arguments_to_given(
     # This can cause the mock to be used as the test runner.
     if is_mock(selfy):
         selfy = None
+
+    generator_kwargs = dict(generator_kwargs)
+
+    for k, v in list(generator_kwargs.items()):
+        generator_kwargs[k] = WithTracker(v, k)
 
     test_runner = new_style_executor(selfy)
 

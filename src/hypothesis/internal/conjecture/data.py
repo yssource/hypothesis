@@ -77,12 +77,16 @@ class ConjectureData(object):
         self.events = set()
         self.forced_indices = set()
         self.capped_indices = {}
+        self.tags = set()
 
     def __assert_not_frozen(self, name):
         if self.frozen:
             raise Frozen(
                 'Cannot call %s on frozen ConjectureData' % (
                     name,))
+
+    def add_tag(self, tag):
+        self.tags.add(tag)
 
     @property
     def depth(self):

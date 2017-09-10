@@ -42,6 +42,8 @@ PY2 = sys.version_info[0] == 2
 PY3 = sys.version_info[0] == 3
 PYPY = platform.python_implementation() == 'PyPy'
 CAN_UNPACK_BYTE_ARRAY = sys.version_info[:3] >= (2, 7, 4)
+HAS_MATMUL = sys.version_info[:2] >= (3, 5)
+
 
 WINDOWS = platform.system() == 'Windows'
 

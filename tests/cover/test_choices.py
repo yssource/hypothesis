@@ -37,14 +37,6 @@ def test_exhaustion():
 
 
 @checks_deprecated_behaviour
-def test_choice_is_shared():
-    @given(st.choices(), st.choices())
-    def test(choice1, choice2):
-        assert choice1 is choice2
-    test()
-
-
-@checks_deprecated_behaviour
 def test_cannot_use_choices_within_find():
     with pytest.raises(InvalidArgument):
         find(st.choices(), lambda c: True)

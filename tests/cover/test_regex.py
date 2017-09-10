@@ -122,7 +122,7 @@ def assert_all_examples(strategy, predicate):
     @given(strategy)
     def assert_examples(s):
         assert predicate(s), \
-            'Found %r using strategy %s which does not match' % (s, strategy)
+            'Found %r using strategy %r which does not match' % (s, strategy)
 
     assert_examples()
 

@@ -58,7 +58,7 @@ def test_kwarg_example_on_testcase():
 
 
 def test_errors_when_run_with_not_enough_args():
-    @given(integers(), int)
+    @given(integers(), integers())
     @example(1)
     def foo(x, y):
         pass
@@ -68,7 +68,7 @@ def test_errors_when_run_with_not_enough_args():
 
 
 def test_errors_when_run_with_not_enough_kwargs():
-    @given(integers(), int)
+    @given(integers(), integers())
     @example(x=1)
     def foo(x, y):
         pass
