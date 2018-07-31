@@ -239,7 +239,7 @@ def test_can_find_unique_lists_of_non_set_order():
 
 
 def test_can_find_sets_unique_by_incomplete_data():
-    size = 5
+    size = 3
     ls = minimal(
         lists(lists(integers(min_value=0), min_size=2), unique_by=max),
         lambda x: len(x) >= size
