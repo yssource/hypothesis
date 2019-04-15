@@ -110,6 +110,18 @@ def e(a, **kwargs):
             min_side=2,
             max_side=3,
         ),
+        e(nps.integer_array_indices, shape=(2, 2), min_side="a"),
+        e(nps.integer_array_indices, shape=(2, 2), min_dims="a"),
+        e(nps.integer_array_indices, shape=(2, 2), max_side="a"),
+        e(nps.integer_array_indices, shape=(2, 2), max_dims="a"),
+        e(nps.integer_array_indices, shape=(2, 2), min_side=-1),
+        e(nps.integer_array_indices, shape=(2, 2), min_dims=-1),
+        e(nps.integer_array_indices, shape=(2, 2), min_dims=1, max_dims=33),
+        e(nps.integer_array_indices, shape=(2, 2), min_dims=33, max_dims=34),
+        e(nps.integer_array_indices, shape=(2, 2), dtype="float"),
+        e(nps.integer_array_indices, shape=(2, 2), dtype="a"),
+        e(nps.integer_array_indices, shape=tuple()),
+        e(nps.integer_array_indices, shape=(2, 0, 2)),
     ],
 )
 def test_raise_invalid_argument(function, kwargs):

@@ -829,3 +829,62 @@ def broadcastable_shapes(shape, min_dims=0, max_dims=None, min_side=1, max_side=
         min_side=min_side,
         max_side=max_side,
     )
+
+
+@st.defines_strategy
+def integer_array_indices(
+    shape, min_dims=1, max_dims=3, min_side=1, max_side=3, dtype="int"
+):
+    # type: (Tuple[int, ...], int, int, int, int, Union[np.dtype, str]) -> st.SearchStrategy[Tuple[np.ndarray, ...]]
+    """Return a search strategy for generating tuples of integer-arrays that index into an
+    array of the specified shape, using advanced indexing.
+
+    Examples from this strategy shrink towards the index:
+    `len(shape) * (np.zeros(min_dims * [min_side], dtype), )`
+
+    * ``shape`` a tuple of integers. The shape of the array whose indices are
+      being generated.
+    * ``min_dims`` the minimum dimensionality permitted for the index-arrays.
+    * ``max_dims`` the maximum dimensionality permitted for the index-arrays.
+    * ``min_side`` the smallest side permitted for the index-arrays.
+    * ``max_side`` the largest side permitted for the index-arrays.
+    * ``dtype`` the integer data type of the generated index-arrays.
+       Negative integer indices can be generated if a signed integer type is
+       specified."""
+    check_type((tuple, list), shape, "shape")
+    if not shape or any(not isinstance(x, integer_types) or x < 1 for x in shape):
+        raise InvalidArgument(
+            "shape must be a non-empty tuple of integers greater than 0, got %r"
+            % (shape,)
+        )
+
+    check_type(integer_types, min_side, "min_side")
+    check_type(integer_types, max_side, "max_side")
+    check_type(integer_types, min_dims, "min_dims")
+    check_type(integer_types, max_dims, "max_dims")
+
+    if 32 < max_dims:
+        raise InvalidArgument("max_dims cannot exceed 32")
+
+    order_check("side", 0, min_side, max_side)
+    order_check("dims", 0, min_dims, max_dims)
+
+    if not np.issubdtype(dtype, np.integer):
+        raise InvalidArgument("dtype must be an integer data type. Got %r" % dtype)
+
+    def bnds(size):
+        lower = -size if np.issubdtype(dtype, np.signedinteger) else 0
+        return lower, size - 1
+
+    def index_arrays_strat(index_shape):
+        return (
+            arrays(dtype=dtype, shape=index_shape, elements=st.integers(*bnds(size)))
+            for size in shape
+        )
+
+    index_shape_strat = array_shapes(
+        min_dims=min_dims, max_dims=max_dims, min_side=min_side, max_side=max_side
+    )
+    return index_shape_strat.flatmap(
+        lambda x: st.tuples(*index_arrays_strat(index_shape=x))
+    )
