@@ -681,12 +681,30 @@ class ConjectureRunner(object):
             # A thing that is often useful but rarely happens by accident is
             # to generate the same value at multiple different points in the
             # test case.
-            if data.status >= Status.INVALID and self.health_check_state is None:
+            #
+            # Rather than make this the responsibility of individual strategies
+            # we implement a small mutator that just takes parts of the test
+            # case with the same label and tries replacing one of them with a
+            # copy of the other.
+            if (
+                # An OVERRUN doesn't have enough information about the test
+                # case to mutate, so we just skip those.
+                data.status >= Status.INVALID
+                and
+                # This has a tendency to trigger some weird edge cases during
+                # generation so we don't let it run until we're done with the
+                # health checks.
+                self.health_check_state is None
+            ):
                 initial_calls = self.call_count
                 failed_mutations = 0
                 while (
                     should_generate_more()
-                    and self.call_count <= initial_calls + 5
+                    and
+                    # We implement fairly conservative checks for how long we
+                    # we should run mutation for, as it's generally not obvious
+                    # how helpful it is for any given test case.
+                    self.call_count <= initial_calls + 5
                     and failed_mutations <= 5
                 ):
                     groups = defaultdict(list)
@@ -716,6 +734,9 @@ class ConjectureRunner(object):
                             + data.buffer[ex1.end : ex2.start]
                             + replacement
                             + data.buffer[ex2.end :],
+                            # We set error_on_discard so that we don't end up
+                            # entering parts of the tree we consider redundant
+                            # and not worth exploring.
                             error_on_discard=True,
                         )
                     except ContainsDiscard:
@@ -853,6 +874,13 @@ class ConjectureRunner(object):
 
         Otherwise we call through to ``test_function``, and return a
         fresh result.
+
+        If ``error_on_discard`` is set to True this will raise ``ContainsDiscard``
+        in preference to running the actual test function. This is to allow us
+        to skip test cases we expect to be redundant in some cases. Note that
+        it may be the case that we don't raise ``ContainsDiscard`` even if the
+        result has discards if we cannot determine from previous runs whether
+        it will have a discard.
         """
         buffer = hbytes(buffer)[:BUFFER_SIZE]
 
