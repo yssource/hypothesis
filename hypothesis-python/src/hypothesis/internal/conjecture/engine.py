@@ -31,6 +31,7 @@ from hypothesis.internal.compat import ceil, hbytes, int_from_bytes
 from hypothesis.internal.conjecture.data import (
     ConjectureData,
     ConjectureResult,
+    DataObserver,
     GenerationParameters,
     Overrun,
     Status,
@@ -667,6 +668,7 @@ class ConjectureRunner(object):
                 count = 0
                 parameter = GenerationParameters(self.random)
 
+<<<<<<< HEAD
     def optimise_targets(self):
         """If any target observations have been made, attempt to optimise them
         all."""
@@ -675,6 +677,66 @@ class ConjectureRunner(object):
         while True:
             prev_calls = self.call_count
             for target, data in list(self.best_examples_of_observed_targets.items()):
+=======
+            # A thing that is often useful but rarely happens by accident is
+            # to generate the same value at multiple different points in the
+            # test case.
+            if data.status >= Status.INVALID and self.health_check_state is None:
+                initial_calls = self.call_count
+                failed_mutations = 0
+                while (
+                    should_generate_more()
+                    and self.call_count <= initial_calls + 5
+                    and failed_mutations <= 5
+                ):
+                    groups = defaultdict(list)
+                    for ex in data.examples:
+                        groups[ex.label, ex.depth].append(ex)
+
+                    groups = [v for v in groups.values() if len(v) > 1]
+
+                    if not groups:
+                        break
+
+                    group = self.random.choice(groups)
+
+                    ex1, ex2 = sorted(
+                        self.random.sample(group, 2), key=lambda i: i.index
+                    )
+                    assert ex1.end <= ex2.start
+
+                    replacements = [data.buffer[e.start : e.end] for e in [ex1, ex2]]
+
+                    replacement = self.random.choice(replacements)
+
+                    try:
+                        new_data = self.cached_test_function(
+                            data.buffer[: ex1.start]
+                            + replacement
+                            + data.buffer[ex1.end : ex2.start]
+                            + replacement
+                            + data.buffer[ex2.end :],
+                            error_on_discard=True,
+                        )
+                    except ContainsDiscard:
+                        failed_mutations += 1
+                        continue
+
+                    if (
+                        new_data.status >= data.status
+                        and data.buffer != new_data.buffer
+                    ):
+                        data = new_data
+                        failed_mutations = 0
+                    else:
+                        failed_mutations += 1
+
+    def optimise_all(self, data):
+        """If the data or result object is suitable for hill climbing, run hill
+        climbing on all of its target observations."""
+        if data.status == Status.VALID:
+            for target in data.target_observations:
+>>>>>>> 81089a2c... Improve ability to generate duplicated values
                 self.new_optimiser(data, target).run()
             if self.interesting_examples or (prev_calls == self.call_count):
                 break
@@ -785,7 +847,7 @@ class ConjectureRunner(object):
 
         return Optimiser(self, example, target)
 
-    def cached_test_function(self, buffer):
+    def cached_test_function(self, buffer, error_on_discard=False):
         """Checks the tree to see if we've tested this buffer, and returns the
         previous result if we have.
 
@@ -814,7 +876,26 @@ class ConjectureRunner(object):
         else:
             assert result.status != Status.OVERRUN or result is Overrun
             self.__data_cache[buffer] = result
+            if (
+                result.status > Status.OVERRUN
+                and error_on_discard
+                and result.has_discards
+            ):
+                raise ContainsDiscard()
             return result
+
+        if error_on_discard:
+
+            class DiscardObserver(DataObserver):
+                def kill_branch(self):
+                    raise ContainsDiscard()
+
+            try:
+                self.tree.simulate_test_function(
+                    ConjectureData.for_buffer(rewritten, observer=DiscardObserver())
+                )
+            except PreviouslyUnseenBehaviour:
+                pass
 
         # We didn't find a match in the tree, so we need to run the test
         # function normally. Note that test_function will automatically
@@ -846,3 +927,7 @@ class ConjectureRunner(object):
         result = str(event)
         self.events_to_strings[event] = result
         return result
+
+
+class ContainsDiscard(Exception):
+    pass

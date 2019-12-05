@@ -1,5 +1,6 @@
-RELEASE_TYPE: minor
+RELEASE_TYPE: patch
 
-This release adds a dedicated phase for :ref:`targeted property-based testing <targeted-search>`,
-and (somewhat) improves the targeting algorithm so that it will find higher quality results more reliably.
-This comes at a cost of making it more likely to get stuck in a local optimum.
+This release makes Hypothesis better at generating test cases where generated
+values are duplicated in different parts of the test case. This will be
+especially noticeable with reasonably complex values, as it was already able
+to do this for simpler ones such as integers or floats.
