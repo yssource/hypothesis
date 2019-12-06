@@ -685,7 +685,9 @@ class ConjectureRunner(object):
             # Rather than make this the responsibility of individual strategies
             # we implement a small mutator that just takes parts of the test
             # case with the same label and tries replacing one of them with a
-            # copy of the other.
+            # copy of the other and tries running it. If we've made a good
+            # guess about what to put where, this will run a similar generated
+            # test case with more duplication.
             if (
                 # An OVERRUN doesn't have enough information about the test
                 # case to mutate, so we just skip those.
@@ -726,6 +728,14 @@ class ConjectureRunner(object):
                     replacement = self.random.choice(replacements)
 
                     try:
+                        # We attempt to replace both the the examples with
+                        # whichever choice we made. Note that this might end
+                        # up messing up and getting the example boundaries
+                        # wrong - labels matching are only a best guess as to
+                        # whether the two are equivalent - but it doesn't
+                        # really matter. It may not achieve the desired result
+                        # but it's still a perfectly acceptable choice sequence.
+                        # to try.
                         new_data = self.cached_test_function(
                             data.buffer[: ex1.start]
                             + replacement
