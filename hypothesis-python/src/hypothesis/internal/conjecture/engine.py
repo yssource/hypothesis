@@ -690,21 +690,19 @@ class ConjectureRunner(object):
                 # An OVERRUN doesn't have enough information about the test
                 # case to mutate, so we just skip those.
                 data.status >= Status.INVALID
-                and
                 # This has a tendency to trigger some weird edge cases during
                 # generation so we don't let it run until we're done with the
                 # health checks.
-                self.health_check_state is None
+                and self.health_check_state is None
             ):
                 initial_calls = self.call_count
                 failed_mutations = 0
                 while (
                     should_generate_more()
-                    and
                     # We implement fairly conservative checks for how long we
                     # we should run mutation for, as it's generally not obvious
                     # how helpful it is for any given test case.
-                    self.call_count <= initial_calls + 5
+                    and self.call_count <= initial_calls + 5
                     and failed_mutations <= 5
                 ):
                     groups = defaultdict(list)
