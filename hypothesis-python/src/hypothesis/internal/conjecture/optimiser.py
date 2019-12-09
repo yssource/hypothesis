@@ -22,7 +22,6 @@ from hypothesis.internal.conjecture.datatree import PreviouslyUnseenBehaviour
 from hypothesis.internal.conjecture.engine import (
     BUFFER_SIZE,
     NO_SCORE,
-    GenerationParameters,
 )
 
 
@@ -121,8 +120,7 @@ class Optimiser(object):
         #
         # This means that the basic neighbourhoods we consider are to pick some
         # prefix of the current point, keep that fixed, and regenerate the
-        # remaining test case according to some parameter.
-        parameter = GenerationParameters(self.random)
+        # remaining test case.
 
         # We keep running our hill climbing until we've got (fairly weak)
         # evidence that we're at a local maximum.
@@ -136,26 +134,18 @@ class Optimiser(object):
             and self.current_data.status <= Status.VALID
         ):
             if self.attempt_to_improve(
-                parameter=parameter, example_index=select_example(self.current_data)
+                example_index=select_example(self.current_data)
             ):
                 # If we succeeed at improving the score then we no longer have
                 # any evidence that we're at a local maximum so we reset the
                 # count.
                 consecutive_failures = 0
             else:
-                # If we've failed in our hill climbing attempt, this could be
-                # for two reasons: We've not picked enough of the test case to
-                # capture what is interesting about this, or our parameter is
-                # not a good one for generating the extensions we want. We
-                # reset both of them in the hope of making more progress next
-                # time around.
-                parameter = GenerationParameters(self.random)
                 consecutive_failures += 1
 
-    def attempt_to_improve(self, example_index, parameter):
+    def attempt_to_improve(self, example_index):
         """Part of our hill climbing implementation. Attempts to improve a
-        given score by regenerating an example in the data based on a new
-        parameter."""
+        given score by regenerating an example."""
 
         data = self.current_data
         self.current_score
@@ -165,22 +155,10 @@ class Optimiser(object):
         prefix_size = ex.start
         prefix = data.buffer[:prefix_size]
 
-        dummy = ConjectureData(
-            prefix=prefix, parameter=parameter, max_length=BUFFER_SIZE,
+        attempt = self.engine.cached_test_function(
+            prefix, extend=BUFFER_SIZE,
         )
-        try:
-            self.engine.tree.simulate_test_function(dummy)
-            # If this didn't throw an exception then we've already seen this
-            # behaviour before and are trying something too similar to what
-            # we already have.
-            return False
-        except PreviouslyUnseenBehaviour:
-            pass
 
-        attempt = self.engine.new_conjecture_data(
-            prefix=dummy.buffer, parameter=parameter
-        )
-        self.engine.test_function(attempt)
         if self.consider_new_test_data(attempt):
             return True
 
