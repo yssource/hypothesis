@@ -504,6 +504,7 @@ class Phase(IntEnum):
     reuse = 1
     generate = 2
     shrink = 3
+    target = 4
 
     def __repr__(self):
         return "Phase.%s" % (self.name,)

@@ -70,6 +70,7 @@ with each phase corresponding to a value on the :class:`~hypothesis.Phase` enum:
 3. ``Phase.generate`` controls whether new examples will be generated.
 4. ``Phase.shrink`` controls whether examples will be shrunk.
 
+
 The phases argument accepts a collection with any subset of these. e.g.
 ``settings(phases=[Phase.generate, Phase.shrink])`` will generate new examples
 and shrink them, but will not run explicit examples or reuse previous failures,
